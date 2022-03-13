@@ -1,0 +1,48 @@
+users:
+  - default
+write_files:
+  - path: /home/ubuntu/inital-setup.sh
+    content: |
+      #!/bin/bash
+      HOSTS="$1"
+      # Set correct permission on own home folder
+      sudo chown ubuntu:ubuntu .
+      chmod 755 .
+      . /etc/os-release
+      sudo apt-get update -y && sudo apt-get upgrade -y && \
+      sudo systemctl enable --now ssh.service && \
+      sudo swapoff -a && \
+      sudo loginctl enable-linger $USER && \
+      sudo systemctl enable --now ssh.service
+
+      if [ ! -z "$HOSTS" ]
+      then
+        echo -en "Argument supplied: ${HOSTS}"
+        echo -en "${HOSTS}" | sudo tee -a /etc/hosts
+      fi
+    permissions: "0755"
+  - path: /home/ubuntu/setup-docker.sh
+    content: |
+      #!/bin/bash
+      . /etc/os-release
+      sudo curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add && \
+      sudo apt-add-repository "deb http://apt.kubernetes.io/ kubernetes-xenial main" && \
+      sudo apt-get update -y && sudo apt-get install docker.io -y && \
+      sudo usermod -aG docker $USER && \
+      sudo sed -i 's/^ExecStart.*/ExecStart=\/usr\/bin\/dockerd -H fd:\/\/ --containerd=\/run\/containerd\/containerd.sock\ --exec-opt\ native\.cgroupdriver=systemd/' /usr/lib/systemd/system/docker.service && \
+      sudo systemctl enable docker && \
+      sudo systemctl restart docker
+    permissions: "0755"  
+  - path: /home/ubuntu/setup-kubernetes.sh
+    content: |
+      #!/bin/bash
+      . /etc/os-release
+      sudo curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add && \
+      sudo apt-add-repository "deb http://apt.kubernetes.io/ kubernetes-xenial main" && \
+      sudo apt-get upgrade -y && sudo apt-get install kubeadm kubelet kubectl -y      
+    permissions: "0755"
+
+runcmd:
+  - sudo cp /etc/skel/.bashrc /home/ubuntu/.bashrc
+  - sudo cp /etc/skel/.bash_logout /home/ubuntu/.bash_logout
+  - sudo cp /etc/skel/.profile /home/ubuntu/.profile
